@@ -45,14 +45,14 @@ import System.IO.Unsafe (unsafePerformIO)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 
-newtype BS = BS B.ByteString
+newtype BS = WrapBS B.ByteString
 
 data BSSource
 
 instance Storable BS where
     sizeOf _    = (#size struct BS)
     alignment _ = alignment (undefined :: Ptr CInt)
-    poke ptr (BS (PS fp off len)) = withForeignPtr fp $ \p -> do
+    poke ptr (WrapBS (PS fp off len)) = withForeignPtr fp $ \p -> do
       (#poke struct BS, ptr) ptr (p `plusPtr` off)
       (#poke struct BS, off) ptr (0::CSize)
       (#poke struct BS, len) ptr len
@@ -95,7 +95,7 @@ withChunks :: ByteString -> (Ptr BS -> Int -> Int -> IO a) -> IO a
 withChunks bs act = do
   let len = fromIntegral (L.length bs)
   let chunks = L.toChunks bs
-  r <- withArray (map BS chunks) $ \chunkPtr ->
+  r <- withArray (map WrapBS chunks) $ \chunkPtr ->
        act chunkPtr (length chunks) len
   foldr (\(PS fp _ _) _ -> touchForeignPtr fp) (return ()) chunks
   return r
